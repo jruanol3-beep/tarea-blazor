@@ -1,0 +1,298 @@
+@page "/clientes"
+@using ClientesBlazorApp.Models
+@using ClientesBlazorApp.Services
+@inject ClienteApiService ApiService
+@inject IJSRuntime JS
+@rendermode InteractiveServer
+
+<PageTitle>Clientes</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="fw-bold mb-0">Clientes</h2>
+        <p class="text-muted mb-0">Administración de clientes — datos obtenidos desde la API REST.</p>
+    </div>
+    <button class="btn btn-primary rounded-pill px-4 shadow-sm" @onclick="AbrirModalNuevo">
+        + Nuevo cliente
+    </button>
+</div>
+
+@if (mensajeError is not null)
+{
+    <div class="alert alert-danger alert-dismissible rounded-3 shadow-sm" role="alert">
+        @mensajeError
+        <button type="button" class="btn-close" @onclick="() => mensajeError = null"></button>
+    </div>
+}
+
+<div class="card border-0 shadow-sm rounded-4">
+    <div class="card-body p-0">
+        @if (cargando)
+        {
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status"></div>
+                <p class="text-muted mt-2">Cargando clientes...</p>
+            </div>
+        }
+        else if (clientes.Count == 0)
+        {
+            <div class="text-center py-5 text-muted">
+                <p class="mb-0">No hay clientes registrados todavía.</p>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Cliente</th>
+                            <th>CUI</th>
+                            <th>NIT</th>
+                            <th>Teléfono</th>
+                            <th>Fecha Nac.</th>
+                            <th class="text-end pe-4">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var c in clientes)
+                        {
+                            <tr>
+                                <td class="ps-4">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center fw-bold"
+                                             style="width:38px;height:38px;font-size:0.9rem;">
+                                            @ObtenerIniciales(c)
+                                        </div>
+                                        <div>
+                                            <div class="fw-semibold">@c.Nombres @c.Apellidos</div>
+                                            <div class="text-muted small">@c.Direccion</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td><span class="badge bg-light text-dark border">@c.CUI</span></td>
+                                <td><span class="badge bg-light text-dark border">@c.NIT</span></td>
+                                <td>@c.Telefono</td>
+                                <td>@c.Fecha_Nacimiento.ToString("dd/MM/yyyy")</td>
+                                <td class="text-end pe-4">
+                                    <button class="btn btn-sm btn-outline-secondary rounded-pill me-1" @onclick="() => AbrirModalEditar(c)" title="Editar">
+                                        ✎
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger rounded-pill" @onclick="() => AbrirModalEliminar(c)" title="Eliminar">
+                                        🗑
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Modal Nuevo/Editar -->
+<div class="modal fade" id="clienteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold">@(esEdicion ? "Editar cliente" : "Nuevo cliente")</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body pt-2">
+                <EditForm Model="clienteActual" OnValidSubmit="GuardarCliente">
+                    <DataAnnotationsValidator />
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="form-floating">
+                                <InputText @bind-Value="clienteActual.CUI" class="form-control" id="cui" placeholder="CUI" />
+                                <label for="cui">CUI</label>
+                            </div>
+                            <ValidationMessage For="() => clienteActual.CUI" class="text-danger small" />
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-floating">
+                                <InputText @bind-Value="clienteActual.NIT" class="form-control" id="nit" placeholder="NIT" />
+                                <label for="nit">NIT</label>
+                            </div>
+                            <ValidationMessage For="() => clienteActual.NIT" class="text-danger small" />
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-floating">
+                                <InputText @bind-Value="clienteActual.Nombres" class="form-control" id="nombres" placeholder="Nombres" />
+                                <label for="nombres">Nombres</label>
+                            </div>
+                            <ValidationMessage For="() => clienteActual.Nombres" class="text-danger small" />
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-floating">
+                                <InputText @bind-Value="clienteActual.Apellidos" class="form-control" id="apellidos" placeholder="Apellidos" />
+                                <label for="apellidos">Apellidos</label>
+                            </div>
+                            <ValidationMessage For="() => clienteActual.Apellidos" class="text-danger small" />
+                        </div>
+                        <div class="col-md-8">
+                            <div class="form-floating">
+                                <InputText @bind-Value="clienteActual.Direccion" class="form-control" id="direccion" placeholder="Dirección" />
+                                <label for="direccion">Dirección</label>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-floating">
+                                <InputText @bind-Value="clienteActual.Telefono" class="form-control" id="telefono" placeholder="Teléfono" />
+                                <label for="telefono">Teléfono</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-floating">
+                                <InputDate @bind-Value="clienteActual.Fecha_Nacimiento" class="form-control" id="fecha" />
+                                <label for="fecha">Fecha de nacimiento</label>
+                            </div>
+                            <ValidationMessage For="() => clienteActual.Fecha_Nacimiento" class="text-danger small" />
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0 pt-4 px-0 pb-0">
+                        <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary rounded-pill px-4" disabled="@guardando">
+                            @(guardando ? "Guardando..." : "Guardar")
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Confirmar Eliminación -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-body text-center p-4">
+                <div class="text-danger mb-3" style="font-size:2.5rem;">⚠</div>
+                <h5 class="fw-bold">¿Eliminar cliente?</h5>
+                <p class="text-muted">
+                    Estás a punto de eliminar a <strong>@clienteActual.Nombres @clienteActual.Apellidos</strong>. Esta acción no se puede deshacer.
+                </p>
+                <div class="d-flex justify-content-center gap-2 mt-3">
+                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-danger rounded-pill px-4" @onclick="ConfirmarEliminar" disabled="@guardando">
+                        @(guardando ? "Eliminando..." : "Sí, eliminar")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<Cliente> clientes = new();
+    private Cliente clienteActual = new();
+    private bool cargando = true;
+    private bool guardando = false;
+    private bool esEdicion = false;
+    private string? mensajeError = null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarClientes();
+    }
+
+    private async Task CargarClientes()
+    {
+        cargando = true;
+        try
+        {
+            clientes = await ApiService.ObtenerClientesAsync();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"No se pudo conectar con la API: {ex.Message}";
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private string ObtenerIniciales(Cliente c)
+    {
+        var n = c.Nombres.Length > 0 ? c.Nombres[0].ToString() : "";
+        var a = c.Apellidos.Length > 0 ? c.Apellidos[0].ToString() : "";
+        return (n + a).ToUpper();
+    }
+
+    private async Task AbrirModalNuevo()
+    {
+        esEdicion = false;
+        clienteActual = new Cliente();
+        await JS.InvokeVoidAsync("bsModal.show", "clienteModal");
+    }
+
+    private async Task AbrirModalEditar(Cliente c)
+    {
+        esEdicion = true;
+        clienteActual = new Cliente
+        {
+            Id_cliente = c.Id_cliente,
+            CUI = c.CUI,
+            NIT = c.NIT,
+            Nombres = c.Nombres,
+            Apellidos = c.Apellidos,
+            Direccion = c.Direccion,
+            Telefono = c.Telefono,
+            Fecha_Nacimiento = c.Fecha_Nacimiento
+        };
+        await JS.InvokeVoidAsync("bsModal.show", "clienteModal");
+    }
+
+    private async Task AbrirModalEliminar(Cliente c)
+    {
+        clienteActual = c;
+        await JS.InvokeVoidAsync("bsModal.show", "deleteModal");
+    }
+
+    private async Task GuardarCliente()
+    {
+        guardando = true;
+        try
+        {
+            if (esEdicion)
+            {
+                await ApiService.ActualizarClienteAsync(clienteActual);
+            }
+            else
+            {
+                await ApiService.CrearClienteAsync(clienteActual);
+            }
+            await JS.InvokeVoidAsync("bsModal.hide", "clienteModal");
+            await CargarClientes();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al guardar: {ex.Message}";
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private async Task ConfirmarEliminar()
+    {
+        guardando = true;
+        try
+        {
+            await ApiService.EliminarClienteAsync(clienteActual.Id_cliente);
+            await JS.InvokeVoidAsync("bsModal.hide", "deleteModal");
+            await CargarClientes();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al eliminar: {ex.Message}";
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+}
