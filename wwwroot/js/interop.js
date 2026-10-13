@@ -10,3 +10,11 @@ window.bsModal = {
         modal.hide();
     }
 };
+
+// Reemplaza el onclick en línea que tenía NavMenu.razor
+document.addEventListener("click", function (e) {
+    if (e.target.closest(".nav-scrollable")) {
+        var toggler = document.querySelector(".navbar-toggler");
+        if (toggler) toggler.click();
+    }
+});
